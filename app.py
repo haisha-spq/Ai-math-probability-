@@ -45,7 +45,7 @@ if st.button("🎲 Generate New Problem", use_container_width=True):
     with st.spinner("🤖 AI is thinking..."):
         try:
             interaction = client.interactions.create(
-                model="gemini-3.8-pro",
+                model="gemini-2.5-flash",
                 input=PROMPTS[level],
                 response_format={"type": "text", "mime_type": "application/json"}
             )
