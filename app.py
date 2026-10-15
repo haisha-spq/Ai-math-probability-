@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import json
 import random
 import numpy as np
@@ -13,44 +13,46 @@ st.set_page_config(
     layout="wide"
 )
 
-# ===== STYLE =====
+# ===== STYLE (LIGHT PURPLE + REAL GOLD) =====
 st.markdown("""
 <style>
     .stApp {
-        background: linear-gradient(135deg, #f5f0ff 0%, #ffffff 100%);
+        background: linear-gradient(135deg, #FAF5FF 0%, #FFFFFF 100%);
     }
     .main-title {
-        color: #000000;
+        color: #7E22CE;
         font-size: 3rem;
         font-weight: bold;
         text-align: center;
         padding: 1rem;
     }
     .game-card {
-        background: white;
-        border: 3px solid #FFD700;
+        background: #FFFFFF;
+        border: 2px solid #D4AF37;
         border-radius: 20px;
         padding: 20px;
         margin: 15px 0;
-        box-shadow: 0 8px 20px rgba(107, 33, 168, 0.2);
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.15);
         color: #000000;
     }
     .purple-card {
-        background: linear-gradient(135deg, #6B21A8, #9333EA);
+        background: linear-gradient(135deg, #A855F7, #C084FC);
         color: #000000;
         border-radius: 20px;
         padding: 20px;
         margin: 10px 0;
-        box-shadow: 0 8px 20px rgba(107, 33, 168, 0.3);
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.25);
+        border: 2px solid #D4AF37;
     }
     .xp-badge {
-        background: linear-gradient(135deg, #FFD700, #FFA500);
+        background: linear-gradient(135deg, #D4AF37, #FFD700);
         color: #000000;
         padding: 8px 20px;
         border-radius: 25px;
         font-weight: bold;
         font-size: 1.1rem;
         text-align: center;
+        border: 1px solid #B8860B;
     }
     .level-basic {
         background: linear-gradient(135deg, #10B981, #34D399);
@@ -60,27 +62,31 @@ st.markdown("""
         font-weight: bold;
     }
     .level-inter {
-        background: linear-gradient(135deg, #FFD700, #FFC107);
+        background: linear-gradient(135deg, #D4AF37, #FFD700);
         color: #000000;
         padding: 8px 16px;
         border-radius: 15px;
         font-weight: bold;
     }
     .level-adv {
-        background: linear-gradient(135deg, #6B21A8, #9333EA);
+        background: linear-gradient(135deg, #A855F7, #C084FC);
         color: #000000;
         padding: 8px 16px;
         border-radius: 15px;
         font-weight: bold;
     }
     .stButton > button {
-        background: linear-gradient(90deg, #6B21A8, #9333EA);
+        background: linear-gradient(90deg, #A855F7, #C084FC);
         color: #000000;
-        border: 2px solid #FFD700;
+        border: 2px solid #D4AF37;
         border-radius: 15px;
         padding: 12px 30px;
         font-weight: bold;
         font-size: 1.1rem;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(90deg, #C084FC, #D4AF37);
+        transform: translateY(-2px);
     }
     p, h1, h2, h3, h4, h5, h6, span, div, label {
         color: #000000 !important;
@@ -114,11 +120,10 @@ with col2:
 if st.session_state.badges:
     st.markdown(f'<p style="text-align:center; color:#000000;">Earned: {" | ".join(st.session_state.badges)}</p>', unsafe_allow_html=True)
 
-# ===== API KEY =====
+# ===== API KEY (NEW API) =====
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    client = genai.Client(api_key=api_key)
 except Exception as e:
     st.error("⚠️ API key not found. Please add GOOGLE_API_KEY in Streamlit Secrets.")
     st.stop()
@@ -160,15 +165,19 @@ st.markdown('<div class="game-card">', unsafe_allow_html=True)
 level = st.radio("🎯 Choose difficulty level:", list(PROMPTS.keys()), horizontal=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ===== GENERATE PROBLEM =====
+# ===== GENERATE PROBLEM (NEW API) =====
 if st.button("🎲 Generate New Problem", use_container_width=True):
     with st.spinner("🤖 AI is creating a problem..."):
         try:
-            response = model.generate_content(
-                PROMPTS[level],
-                generation_config={"response_mime_type": "application/json"}
+            interaction = client.interactions.create(
+                model="gemini-3.8-flash",
+                input=PROMPTS[level],
+                response_format={
+                    "type": "text",
+                    "mime_type": "application/json"
+                }
             )
-            text = response.text.strip()
+            text = interaction.output_text.strip()
             if text.startswith("```json"):
                 text = text[7:]
             if text.endswith("```"):
@@ -247,15 +256,15 @@ if "Intermediate" in level and st.session_state.problem_data:
         for i in range(6):
             for j in range(6):
                 val = (i + 1) + (j + 1)
-                color = '#FFD700' if val == target else '#f0e6ff'
-                ax.add_patch(plt.Rectangle((j, 5-i), 1, 1, color=color, alpha=0.8, edgecolor='#6B21A8'))
+                color = '#D4AF37' if val == target else '#FAF5FF'
+                ax.add_patch(plt.Rectangle((j, 5-i), 1, 1, color=color, alpha=0.9, edgecolor='#7E22CE'))
                 ax.text(j+0.5, 5-i+0.5, val, ha='center', va='center', fontsize=10, fontweight='bold', color='#000000')
         
         ax.set_xlim(0, 6)
         ax.set_ylim(0, 6)
         ax.set_xticks([])
         ax.set_yticks([])
-        ax.set_title(f"Sum = {target} (highlighted gold)", fontsize=12, color='#000000', fontweight='bold')
+        ax.set_title(f"Sum = {target} (highlighted gold)", fontsize=12, color='#7E22CE', fontweight='bold')
         st.pyplot(fig)
         
         st.markdown("#### 📈 Sum Frequency")
@@ -263,11 +272,11 @@ if "Intermediate" in level and st.session_state.problem_data:
         counts = [sums.count(s) for s in range(2, 13)]
         
         fig2, ax2 = plt.subplots(figsize=(6, 3))
-        colors = ['#FFD700' if s == target else '#9333EA' for s in range(2, 13)]
-        ax2.bar(range(2, 13), counts, color=colors, edgecolor='#6B21A8')
+        colors = ['#D4AF37' if s == target else '#A855F7' for s in range(2, 13)]
+        ax2.bar(range(2, 13), counts, color=colors, edgecolor='#7E22CE')
         ax2.set_xlabel('Sum', color='#000000', fontweight='bold')
         ax2.set_ylabel('Number of ways', color='#000000', fontweight='bold')
-        ax2.set_title(f'Why is {target} more common?', color='#000000', fontweight='bold')
+        ax2.set_title(f'Why is {target} more common?', color='#7E22CE', fontweight='bold')
         st.pyplot(fig2)
 
 # ===== COIN SIMULATOR =====
