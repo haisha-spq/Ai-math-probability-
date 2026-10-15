@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
-# ===== БЕТТІҢ БАПТАУЫ =====
+# ===== PAGE CONFIG =====
 st.set_page_config(
     page_title="AI Math: Probability",
     page_icon="🎲",
@@ -100,78 +100,80 @@ if "dice_results" not in st.session_state:
 if "coin_result" not in st.session_state:
     st.session_state.coin_result = None
 
-# ===== ТАҚЫРЫП =====
+# ===== TITLE =====
 st.markdown('<h1 class="main-title">🎲 AI Math: Probability 🎲</h1>', unsafe_allow_html=True)
-st.markdown('<p style="text-align:center; color:#000000; font-size:1.2rem;">AI ықтималдық есептерін 3 деңгейге бөледі 🏆</p>', unsafe_allow_html=True)
+st.markdown('<p style="text-align:center; color:#000000; font-size:1.2rem;">AI generates probability problems at 3 difficulty levels 🏆</p>', unsafe_allow_html=True)
 
 # ===== XP + BADGES =====
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 with col1:
     st.markdown(f'<div class="xp-badge">🏆 XP: {st.session_state.xp}</div>', unsafe_allow_html=True)
 with col2:
-    st.markdown(f'<div class="xp-badge">🎖️ {len(st.session_state.badges)} медаль</div>', unsafe_allow_html=True)
-with col3:
-    streak = random.randint(1, 7)
-    st.markdown(f'<div class="xp-badge">🔥 Streak: {streak}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="xp-badge">🎖️ Badges: {len(st.session_state.badges)}</div>', unsafe_allow_html=True)
 
 if st.session_state.badges:
-    st.markdown(f'<p style="text-align:center; color:#000000;">Медальдар: {" | ".join(st.session_state.badges)}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="text-align:center; color:#000000;">Earned: {" | ".join(st.session_state.badges)}</p>', unsafe_allow_html=True)
 
-# ===== API КІЛТІ =====
+# ===== API KEY =====
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.5-flash')
 except Exception as e:
-    st.error("⚠️ API кілті табылмады. Streamlit Secrets-те GOOGLE_API_KEY қосыңыз.")
+    st.error("⚠️ API key not found. Please add GOOGLE_API_KEY in Streamlit Secrets.")
     st.stop()
 
-# ===== ПРОМПТТАР =====
+# ===== PROMPTS =====
 PROMPTS = {
     "🟢 Basic (Coin Toss)": """
-Сен математика мұғалімісің. ЫҚТИМАЛДЫҚ бойынша ТИЫН ЛАҚТЫРУ есебін құрастыр.
-- 1 немесе 2 тиын
-- Қадам-қадам толық түсіндір
-- Формула: P = қолайлы / барлық
+You are a math teacher. Create a COIN TOSS probability problem.
+- 1 or 2 coins
+- Full step-by-step solution
+- Formula: P = favorable / total
 
-JSON форматында бер:
+Return ONLY JSON:
 {"problem": "...", "hint": "...", "steps": ["1", "2", "3"], "answer": "...", "target_sum": 0}
 """,
     "🟡 Intermediate (2 Dice)": """
-Сен математика мұғалімісің. ЫҚТИМАЛДЫҚ бойынша ЕКІ СҮЙЕК есебін құрастыр.
-- Екі сүйек тасталады
-- Қосындысының ықтималдығы (мысалы sum = 7)
-- 36 нәтижені ескер
-- Жартылай кеңес
+You are a math teacher. Create a TWO DICE probability problem.
+- Two dice are tossed
+- Find probability of their sum (e.g., sum = 7)
+- Show 36 outcomes
+- Partial hints
 
-JSON форматында бер:
+Return ONLY JSON:
 {"problem": "...", "hint": "...", "steps": ["1", "2", "3"], "answer": "...", "target_sum": 7}
 """,
     "🔴 Advanced (Real-World)": """
-Сен математика мұғалімісің. ЫҚТИМАЛДЫҚ бойынша КҮРДЕЛІ нақты өмірлік есеп құрастыр.
-- Медицина, ауа райы, ойын
-- Байес формуласы НЕМЕСЕ шартты ықтималдық
-- Тек бағыт бер
+You are a math teacher. Create a COMPLEX real-world probability problem.
+- Medicine, weather, games
+- Bayes theorem OR conditional probability
+- Direction only
 
-JSON форматында бер:
+Return ONLY JSON:
 {"problem": "...", "hint": "...", "steps": ["1", "2", "3"], "answer": "...", "target_sum": 0}
 """
 }
 
-# ===== ДЕҢГЕЙ ТАҢДАУ (level ОСЫНДА анықталады) =====
+# ===== LEVEL SELECT =====
 st.markdown('<div class="game-card">', unsafe_allow_html=True)
-level = st.radio("🎯 Деңгейді таңдаңыз:", list(PROMPTS.keys()), horizontal=True)
+level = st.radio("🎯 Choose difficulty level:", list(PROMPTS.keys()), horizontal=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ===== ЕСЕП ЖАСАУ =====
-if st.button("🎲 Жаңа есеп жасау", use_container_width=True):
-    with st.spinner("🤖 AI есеп құрастырып жатыр..."):
+# ===== GENERATE PROBLEM =====
+if st.button("🎲 Generate New Problem", use_container_width=True):
+    with st.spinner("🤖 AI is creating a problem..."):
         try:
             response = model.generate_content(
                 PROMPTS[level],
                 generation_config={"response_mime_type": "application/json"}
             )
-            data = json.loads(response.text)
+            text = response.text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.endswith("```"):
+                text = text[:-3]
+            data = json.loads(text.strip())
             st.session_state.problem_data = data
             st.session_state.xp += 10
             if "🎯 First Problem" not in st.session_state.badges:
@@ -180,9 +182,9 @@ if st.button("🎲 Жаңа есеп жасау", use_container_width=True):
             time.sleep(0.5)
             st.rerun()
         except Exception as e:
-            st.error(f"Қате: {e}")
+            st.error(f"Error: {e}")
 
-# ===== ЕСЕПТІ КӨРСЕТУ =====
+# ===== SHOW PROBLEM =====
 if st.session_state.problem_data:
     data = st.session_state.problem_data
     st.markdown("---")
@@ -196,30 +198,30 @@ if st.session_state.problem_data:
     
     st.markdown(f'''
     <div class="purple-card">
-        <h3>📝 Есеп</h3>
+        <h3>📝 Problem</h3>
         <p style="font-size:1.2rem;">{data.get("problem", "")}</p>
     </div>
     ''', unsafe_allow_html=True)
     
-    with st.expander("💡 Кеңес (Hint)"):
+    with st.expander("💡 Hint"):
         st.info(data.get("hint", ""))
     
-    with st.expander("📖 Шешімді көрсету"):
+    with st.expander("📖 Solution"):
         steps = data.get("steps", [])
         for i, step in enumerate(steps, 1):
-            st.markdown(f'<div class="game-card"><b>Қадам {i}:</b> {step}</div>', unsafe_allow_html=True)
-        st.success(f"✅ Жауап: {data.get('answer', '')}")
+            st.markdown(f'<div class="game-card"><b>Step {i}:</b> {step}</div>', unsafe_allow_html=True)
+        st.success(f"✅ Answer: {data.get('answer', '')}")
         st.markdown(f'<div class="xp-badge">🏆 +10 XP</div>', unsafe_allow_html=True)
 
-# ===== СҮЙЕК СИМУЛЯТОРЫ =====
+# ===== DICE SIMULATOR =====
 if "Intermediate" in level and st.session_state.problem_data:
     st.markdown("---")
-    st.markdown("### 🎲 Сүйек Лақтыру Симуляторы")
+    st.markdown("### 🎲 Dice Rolling Simulator")
     
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        if st.button("🎲 Сүйектерді лақтыр!", use_container_width=True):
+        if st.button("🎲 Roll Dice!", use_container_width=True):
             dice1 = random.randint(1, 6)
             dice2 = random.randint(1, 6)
             st.session_state.dice_results = (dice1, dice2)
@@ -233,12 +235,12 @@ if "Intermediate" in level and st.session_state.problem_data:
             st.markdown(f'''
             <div class="game-card" style="text-align:center;">
                 <h2 style="font-size:3rem;">🎲 {d1} &nbsp; 🎲 {d2}</h2>
-                <p style="font-size:1.5rem; color:#000000;">Қосынды: <b>{d1 + d2}</b></p>
+                <p style="font-size:1.5rem; color:#000000;">Sum: <b>{d1 + d2}</b></p>
             </div>
             ''', unsafe_allow_html=True)
     
     with col2:
-        st.markdown("#### 📊 36 Нәтиже Кестесі")
+        st.markdown("#### 📊 All 36 Outcomes")
         target = data.get("target_sum", 7) if data.get("target_sum") else 7
         
         fig, ax = plt.subplots(figsize=(6, 4))
@@ -253,30 +255,30 @@ if "Intermediate" in level and st.session_state.problem_data:
         ax.set_ylim(0, 6)
         ax.set_xticks([])
         ax.set_yticks([])
-        ax.set_title(f"Қосынды = {target} (алтын түспен)", fontsize=12, color='#000000', fontweight='bold')
+        ax.set_title(f"Sum = {target} (highlighted gold)", fontsize=12, color='#000000', fontweight='bold')
         st.pyplot(fig)
         
-        st.markdown("#### 📈 Қосындылар жиілігі")
+        st.markdown("#### 📈 Sum Frequency")
         sums = [i+j for i in range(1,7) for j in range(1,7)]
         counts = [sums.count(s) for s in range(2, 13)]
         
         fig2, ax2 = plt.subplots(figsize=(6, 3))
         colors = ['#FFD700' if s == target else '#9333EA' for s in range(2, 13)]
         ax2.bar(range(2, 13), counts, color=colors, edgecolor='#6B21A8')
-        ax2.set_xlabel('Қосынды', color='#000000', fontweight='bold')
-        ax2.set_ylabel('Жол саны', color='#000000', fontweight='bold')
-        ax2.set_title(f'Неге {target} жиі кездеседі?', color='#000000', fontweight='bold')
+        ax2.set_xlabel('Sum', color='#000000', fontweight='bold')
+        ax2.set_ylabel('Number of ways', color='#000000', fontweight='bold')
+        ax2.set_title(f'Why is {target} more common?', color='#000000', fontweight='bold')
         st.pyplot(fig2)
 
-# ===== ТИЫН СИМУЛЯТОРЫ =====
+# ===== COIN SIMULATOR =====
 if "Basic" in level and st.session_state.problem_data:
     st.markdown("---")
-    st.markdown("### 🪙 Тиын Лақтыру Симуляторы")
+    st.markdown("### 🪙 Coin Flip Simulator")
     
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        if st.button("🪙 Тиынды лақтыр!", use_container_width=True):
+        if st.button("🪙 Flip Coin!", use_container_width=True):
             st.session_state.coin_result = random.choice(["HEADS 🪙", "TAILS 🪙"])
             st.session_state.xp += 5
             st.rerun()
@@ -289,19 +291,10 @@ if "Basic" in level and st.session_state.problem_data:
             ''', unsafe_allow_html=True)
     
     with col2:
-        st.markdown("#### 📊 Барлық нәтижелер")
+        st.markdown("#### 📊 All Outcomes")
         st.markdown('''
         <div class="game-card">
-            <p>🪙 <b>1 тиын:</b> H, T (2 нәтиже)</p>
-            <p>🪙🪙 <b>2 тиын:</b> HH, HT, TH, TT (4 нәтиже)</p>
+            <p>🪙 <b>1 coin:</b> H, T (2 outcomes)</p>
+            <p>🪙🪙 <b>2 coins:</b> HH, HT, TH, TT (4 outcomes)</p>
         </div>
         ''', unsafe_allow_html=True)
-
-# ===== ФУТЕР =====
-st.markdown("---")
-st.markdown('''
-<div style="text-align:center; color:#000000; padding:20px;">
-    <p>🎓 <b>Educational Technology & AI</b> — Individual Assignment</p>
-    <p>💜 Күлгін + Алтын Gamification Style 💛</p>
-</div>
-''', unsafe_allow_html=True)
